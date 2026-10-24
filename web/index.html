@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,32 +33,32 @@
 </head>
 <body>
   <h1>PAC-MAN</h1>
-  <p class="sub">Консольная игра на C++, скомпилированная в WebAssembly · <a href="https://github.com/AlexDrts/PacMan-CPP">исходный код</a></p>
+  <p class="sub">A C++ console game compiled to WebAssembly · <a href="https://github.com/AlexDrts/PacMan-CPP">source code</a></p>
 
   <div class="stage">
-    <canvas id="screen" width="800" height="616" aria-label="Игровое поле"></canvas>
+    <canvas id="screen" width="800" height="616" aria-label="Game board"></canvas>
     <div class="overlay" id="startScreen">
-      <h2>Собери все монеты и не попадись призраку</h2>
-      <button class="play" id="startBtn">▶ Играть</button>
-      <p class="keys">Управление: стрелки или <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · <kbd>Enter</kbd> — старт</p>
+      <h2>Collect every coin and don't get caught by the ghost</h2>
+      <button class="play" id="startBtn">▶ Play</button>
+      <p class="keys">Controls: arrow keys or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · <kbd>Enter</kbd> to start</p>
     </div>
     <div class="overlay" id="endScreen" hidden>
       <h2 id="endTitle"></h2>
       <p id="endText"></p>
-      <button class="play" id="againBtn">↻ Играть снова</button>
+      <button class="play" id="againBtn">↻ Play again</button>
     </div>
   </div>
 
-  <div class="pad" aria-label="Кнопки управления">
-    <button class="up" data-key="72" aria-label="Вверх">▲</button>
-    <button class="left" data-key="75" aria-label="Влево">◀</button>
-    <button class="down" data-key="80" aria-label="Вниз">▼</button>
-    <button class="right" data-key="77" aria-label="Вправо">▶</button>
+  <div class="pad" aria-label="Controls">
+    <button class="up" data-key="72" aria-label="Up">▲</button>
+    <button class="left" data-key="75" aria-label="Left">◀</button>
+    <button class="down" data-key="80" aria-label="Down">▼</button>
+    <button class="right" data-key="77" aria-label="Right">▶</button>
   </div>
 
   <div class="bar">
-    <span class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> движение · <kbd>M</kbd> звук</span>
-    <button class="mute" id="muteBtn" aria-pressed="false">🔊 Звук</button>
+    <span class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> move · <kbd>M</kbd> sound</span>
+    <button class="mute" id="muteBtn" aria-pressed="false">🔊 Sound</button>
   </div>
 
   <script>
@@ -92,7 +92,7 @@
     function setMuted(m) {
       muted = m;
       Object.values(sounds).forEach(a => a.muted = m);
-      muteBtn.textContent = m ? '🔇 Без звука' : '🔊 Звук';
+      muteBtn.textContent = m ? '🔇 Muted' : '🔊 Sound';
       muteBtn.setAttribute('aria-pressed', String(m));
     }
 
@@ -170,8 +170,8 @@
       if (music) music.pause();
       const chars = new Uint8Array(inst.exports.memory.buffer, inst.exports.web_chars(), cols * rows);
       const won = new TextDecoder().decode(chars).includes('YOU WON');
-      document.getElementById('endTitle').textContent = won ? '🏆 Победа!' : '👻 Призрак тебя поймал';
-      document.getElementById('endText').textContent = won ? 'Все монеты собраны.' : 'Игра окончена. Попробуешь ещё раз?';
+      document.getElementById('endTitle').textContent = won ? '🏆 You win!' : '👻 The ghost caught you';
+      document.getElementById('endText').textContent = won ? 'All coins collected.' : 'Game over. Want to try again?';
       setTimeout(() => { endScreen.hidden = false; document.getElementById('againBtn').focus(); }, 600);
     }
     function press(code) { if (running) inst.exports.game_key(code); }
@@ -181,7 +181,7 @@
       const code = KEYS[e.key] ?? KEYS[e.key.toLowerCase?.()];
       if (code) { e.preventDefault(); press(code); return; }
       if ((e.key === 'Enter' || e.key === ' ') && !running) { e.preventDefault(); start(); }
-      if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь') setMuted(!muted);
+      if (e.code === 'KeyM') setMuted(!muted); // physical M key, any keyboard layout
     });
     document.getElementById('startBtn').addEventListener('click', start);
     document.getElementById('againBtn').addEventListener('click', start);
