@@ -66,4 +66,3 @@ Keep the `.wav` files next to the executable so the sounds play.
 <div align="center">
 
 Made by [Alex](https://github.com/AlexDrts) 🌸
-
