@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAC-MAN Console · C++ in the browser</title>
+  <meta name="description" content="Console Pac-Man written in C++, compiled to WebAssembly">
+  <style>
+    :root { --bg: #0b0b12; --panel: #13131d; --text: #e8e6f0; --muted: #8a87a0; --accent: #f9d71c; --wall: #3b78ff; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font-family: Consolas, "Courier New", monospace; }
+    body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
+    h1 { margin: 8px 0 4px; font-size: clamp(22px, 5vw, 34px); letter-spacing: 3px; color: var(--accent); text-shadow: 0 0 12px rgba(249, 215, 28, .45); }
+    .sub { margin: 0 0 16px; color: var(--muted); font-size: 14px; text-align: center; }
+    .sub a { color: var(--wall); }
+    .stage { position: relative; width: 100%; max-width: 800px; border: 2px solid #22223a; border-radius: 10px; overflow: hidden; background: #0c0c0c; box-shadow: 0 0 40px rgba(59, 120, 255, .15); }
+    canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; touch-action: none; }
+    .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(8, 8, 14, .82); text-align: center; padding: 16px; }
+    .overlay[hidden] { display: none; }
+    .overlay h2 { margin: 0; font-size: clamp(20px, 4.5vw, 30px); }
+    .overlay p { margin: 0; color: var(--muted); font-size: 14px; }
+    button { font: inherit; cursor: pointer; border: 0; border-radius: 8px; }
+    .play { background: var(--accent); color: #111; font-weight: bold; font-size: 18px; padding: 12px 28px; }
+    .play:focus-visible, .pad button:focus-visible, .mute:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+    .bar { width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; flex-wrap: wrap; }
+    kbd { border: 1px solid #3a3a52; border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; color: var(--text); }
+    .mute { background: var(--panel); color: var(--text); padding: 6px 12px; border: 1px solid #2a2a40; }
+    .pad { display: none; margin-top: 16px; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 64px); gap: 8px; }
+    .pad button { background: var(--panel); color: var(--text); font-size: 24px; border: 1px solid #2a2a40; }
+    .pad .up { grid-column: 2; } .pad .left { grid-column: 1; grid-row: 2; } .pad .down { grid-column: 2; grid-row: 2; } .pad .right { grid-column: 3; grid-row: 2; }
+    @media (pointer: coarse) { .pad { display: grid; } .keys { display: none; } }
+  </style>
+</head>
+<body>
+  <h1>PAC-MAN</h1>
+  <p class="sub">Консольная игра на C++, скомпилированная в WebAssembly · <a href="https://github.com/AlexDrts/PacMan-CPP">исходный код</a></p>
+
+  <div class="stage">
+    <canvas id="screen" width="800" height="616" aria-label="Игровое поле"></canvas>
+    <div class="overlay" id="startScreen">
+      <h2>Собери все монеты и не попадись призраку</h2>
+      <button class="play" id="startBtn">▶ Играть</button>
+      <p class="keys">Управление: стрелки или <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · <kbd>Enter</kbd> — старт</p>
+    </div>
+    <div class="overlay" id="endScreen" hidden>
+      <h2 id="endTitle"></h2>
+      <p id="endText"></p>
+      <button class="play" id="againBtn">↻ Играть снова</button>
+    </div>
+  </div>
+
+  <div class="pad" aria-label="Кнопки управления">
+    <button class="up" data-key="72" aria-label="Вверх">▲</button>
+    <button class="left" data-key="75" aria-label="Влево">◀</button>
+    <button class="down" data-key="80" aria-label="Вниз">▼</button>
+    <button class="right" data-key="77" aria-label="Вправо">▶</button>
+  </div>
+
+  <div class="bar">
+    <span class="keys"><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> движение · <kbd>M</kbd> звук</span>
+    <button class="mute" id="muteBtn" aria-pressed="false">🔊 Звук</button>
+  </div>
+
+  <script>
+  (() => {
+    // Windows console palette (Campbell), indexed like the game's Color enum
+    const PALETTE = ['#0c0c0c', '#0037da', '#13a10e', '#3a96dd', '#c50f1f', '#881798', '#c19c00', '#cccccc',
+                     '#767676', '#3b78ff', '#16c60c', '#61d6d6', '#e74856', '#b4009e', '#f9f1a5', '#f2f2f2'];
+    const KEYS = { ArrowUp: 72, ArrowLeft: 75, ArrowRight: 77, ArrowDown: 80, w: 72, a: 75, d: 77, s: 80 };
+    const TICK_MS = 200; // same as Sleep(200) in main.cpp
+
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d');
+    const startScreen = document.getElementById('startScreen');
+    const endScreen = document.getElementById('endScreen');
+    const muteBtn = document.getElementById('muteBtn');
+
+    let wasmModule, inst, timer = null, running = false, muted = false;
+    let cols = 50, rows = 22, cw = 16, ch = 28;
+
+    // ---- sound (replaces PlaySoundA) ----
+    const sounds = {};
+    let music = null;
+    function playSound(name, loop) {
+      const a = sounds[name] || (sounds[name] = new Audio(name));
+      if (loop) { music = a; a.loop = true; }
+      else if (music) music.pause();
+      a.currentTime = 0;
+      a.muted = muted;
+      a.play().catch(() => {});
+    }
+    function setMuted(m) {
+      muted = m;
+      Object.values(sounds).forEach(a => a.muted = m);
+      muteBtn.textContent = m ? '🔇 Без звука' : '🔊 Звук';
+      muteBtn.setAttribute('aria-pressed', String(m));
+    }
+
+    // ---- tiny WASI layer: the game only needs stdout and exit() ----
+    class GameExit extends Error {}
+    const view = () => new DataView(inst.exports.memory.buffer);
+    function cstr(ptr) {
+      const bytes = new Uint8Array(inst.exports.memory.buffer, ptr);
+      let end = 0; while (bytes[end]) end++;
+      return new TextDecoder().decode(bytes.subarray(0, end));
+    }
+    function makeImports(module) {
+      const wasi = {};
+      for (const imp of WebAssembly.Module.imports(module))
+        if (imp.module === 'wasi_snapshot_preview1') wasi[imp.name] = () => 52; // ENOSYS
+      wasi.proc_exit = code => { throw new GameExit(String(code)); };
+      wasi.environ_sizes_get = (count, size) => { const v = view(); v.setUint32(count, 0, true); v.setUint32(size, 0, true); return 0; };
+      wasi.environ_get = () => 0;
+      wasi.fd_write = (fd, iovs, n, written) => {
+        const v = view(); let total = 0;
+        for (let i = 0; i < n; i++) total += v.getUint32(iovs + i * 8 + 4, true);
+        v.setUint32(written, total, true); return 0;
+      };
+      return { wasi_snapshot_preview1: wasi, env: { play_sound: (ptr, loop) => playSound(cstr(ptr), loop) } };
+    }
+
+    // ---- drawing the console grid ----
+    function render() {
+      if (!inst) return;
+      const mem = inst.exports.memory.buffer;
+      const chars = new Uint8Array(mem, inst.exports.web_chars(), cols * rows);
+      const colors = new Uint8Array(mem, inst.exports.web_colors(), cols * rows);
+      ctx.fillStyle = PALETTE[0];
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.font = `bold ${Math.round(ch * 0.78)}px Consolas, "Courier New", monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const c = chars[y * cols + x], color = PALETTE[colors[y * cols + x]];
+          const px = x * cw, py = y * ch;
+          if (c === 178) {               // '▓' wall block from the console code page
+            ctx.fillStyle = color; ctx.fillRect(px, py, cw, ch);
+            ctx.fillStyle = 'rgba(0,0,0,.35)';
+            for (let dy = 2; dy < ch; dy += 4) for (let dx = (dy % 8 ? 0 : 2); dx < cw; dx += 4) ctx.fillRect(px + dx, py + dy, 2, 2);
+          } else if (c !== 32 && c !== 0) {
+            ctx.fillStyle = color;
+            ctx.fillText(String.fromCharCode(c), px + cw / 2, py + ch / 2 + 1);
+          }
+        }
+      }
+    }
+
+    // ---- game flow ----
+    async function start() {
+      if (running) return;
+      if (!wasmModule) wasmModule = await WebAssembly.compileStreaming(fetch('pacman.wasm'));
+      inst = await WebAssembly.instantiate(wasmModule, makeImports(wasmModule)); // fresh game state every time
+      inst.exports._initialize();
+      cols = inst.exports.web_cols(); rows = inst.exports.web_rows();
+      startScreen.hidden = true; endScreen.hidden = true;
+      running = true;
+      inst.exports.game_start();
+      render();
+      timer = setInterval(tick, TICK_MS);
+      canvas.focus();
+    }
+    function tick() {
+      try { inst.exports.game_tick(); }
+      catch (e) { if (e instanceof GameExit) { render(); return gameOver(); } throw e; }
+      render();
+    }
+    function gameOver() {
+      clearInterval(timer); running = false;
+      if (music) music.pause();
+      const chars = new Uint8Array(inst.exports.memory.buffer, inst.exports.web_chars(), cols * rows);
+      const won = new TextDecoder().decode(chars).includes('YOU WON');
+      document.getElementById('endTitle').textContent = won ? '🏆 Победа!' : '👻 Призрак тебя поймал';
+      document.getElementById('endText').textContent = won ? 'Все монеты собраны.' : 'Игра окончена. Попробуешь ещё раз?';
+      setTimeout(() => { endScreen.hidden = false; document.getElementById('againBtn').focus(); }, 600);
+    }
+    function press(code) { if (running) inst.exports.game_key(code); }
+
+    // ---- input ----
+    document.addEventListener('keydown', e => {
+      const code = KEYS[e.key] ?? KEYS[e.key.toLowerCase?.()];
+      if (code) { e.preventDefault(); press(code); return; }
+      if ((e.key === 'Enter' || e.key === ' ') && !running) { e.preventDefault(); start(); }
+      if (e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь') setMuted(!muted);
+    });
+    document.getElementById('startBtn').addEventListener('click', start);
+    document.getElementById('againBtn').addEventListener('click', start);
+    muteBtn.addEventListener('click', () => setMuted(!muted));
+    document.querySelectorAll('.pad button').forEach(b =>
+      b.addEventListener('pointerdown', e => { e.preventDefault(); if (!running) start(); press(Number(b.dataset.key)); }));
+    let sx = 0, sy = 0;
+    canvas.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    canvas.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 20) return;
+      press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 77 : 75) : (dy > 0 ? 80 : 72));
+    });
+  })();
+  </script>
+</body>
+</html>

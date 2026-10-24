@@ -1,5 +1,9 @@
 #pragma once
+#ifdef __wasm__
+#include "web/console_shim.h"   // browser build: WinAPI console emulation
+#else
 #include <windows.h>
+#endif
 #include <vector>
 #include <string>
 #include <iostream>
@@ -53,9 +57,13 @@ public:
 
 // ======== ENEMY ========
 class Enemy : public GameObject {
+private:
+    Tile under = Tile::HALL; // what lies under the ghost (so it doesn't erase coins)
 public:
     Enemy(Position p) : GameObject(p) {}
     void Draw(HANDLE h) const override; 
+    Tile getUnder() const { return this->under; }
+    void setUnder(Tile t) { this->under = t; }
 };
 
 // ======== GAME ========

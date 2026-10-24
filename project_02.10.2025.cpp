@@ -29,8 +29,12 @@ Game::~Game() {
 
 // Working with files
 void Game::Map(const string& msg) {
+#ifndef __wasm__ // the browser build has no file system
     ofstream f("map.txt", std::ios::app); 
     if (f.is_open()) f << msg << "\n"; 
+#else
+    (void)msg;
+#endif
 }
 
 // Loading a map from an array of strings
@@ -85,11 +89,19 @@ void Game::MoveEnemies() {
     for (auto& e : this->enemies) {
         Position p = e.getPos();
 
+        // restore whatever was under the ghost (a coin stays a coin)
         COORD old = { (SHORT)p.x, (SHORT)p.y };
         SetConsoleCursorPosition(this->h, old);
-        SetConsoleTextAttribute(this->h, (int)Color::BLACK);
-        cout << " ";
-        this->map[p.y][p.x] = Tile::HALL;
+        Tile under = e.getUnder();
+        if (under == Tile::COIN) {
+            SetConsoleTextAttribute(this->h, (int)Color::YELLOW);
+            cout << ".";
+        }
+        else {
+            SetConsoleTextAttribute(this->h, (int)Color::BLACK);
+            cout << " ";
+        }
+        this->map[p.y][p.x] = under;
 
         int dx = (this->hero.getPos().x > p.x) ? 1 : (this->hero.getPos().x < p.x ? -1 : 0);
         int dy = (this->hero.getPos().y > p.y) ? 1 : (this->hero.getPos().y < p.y ? -1 : 0);
@@ -105,6 +117,10 @@ void Game::MoveEnemies() {
             cout << "YOU WERE CAUGHT! GAME OVER!\n";
             exit(0);
         }
+
+        // remember what the ghost is standing on now
+        Tile next = this->map[p.y][p.x];
+        e.setUnder(next == Tile::ENEMY ? Tile::HALL : next);
 
         e.setPos(p);
         e.Draw(this->h);

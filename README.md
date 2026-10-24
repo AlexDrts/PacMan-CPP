@@ -2,11 +2,15 @@
 
 # 👾 PacMan-CPP
 
-**Classic Pac-Man reimagined as a Windows console game in C++**
+**Classic Pac-Man reimagined as a Windows console game in C++ — now playable in the browser via WebAssembly**
+
+[![Play in browser](https://img.shields.io/badge/%E2%96%B6%20Play%20in%20browser-f9d71c?style=for-the-badge&logoColor=black)](https://alexdrts.github.io/PacMan-CPP/)
 
 ![C++](https://img.shields.io/badge/C%2B%2B-00599C?style=flat-square&logo=cplusplus&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white)
 ![Visual Studio](https://img.shields.io/badge/Visual%20Studio-5C2D91?style=flat-square&logo=visualstudio&logoColor=white)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat-square&logo=webassembly&logoColor=white)
+[![Deploy](https://github.com/AlexDrts/PacMan-CPP/actions/workflows/pages.yml/badge.svg)](https://github.com/AlexDrts/PacMan-CPP/actions/workflows/pages.yml)
 
 </div>
 
@@ -39,6 +43,15 @@ Guide Pac-Man (`C`) through the maze, collect every coin (`.`) and avoid the gho
 - **Sound** played on a separate thread via `PlaySound` (winmm)
 - Strongly typed `enum class` for tiles, colors and keys
 
+## 🌐 Browser version
+
+The **same C++ game code** runs in the browser — [play it here](https://alexdrts.github.io/PacMan-CPP/).
+
+- The game logic (`project_02.10.2025.cpp`, `Entities.cpp`) is compiled to **WebAssembly** unchanged
+- `web/console_shim` emulates the WinAPI console calls (`SetConsoleCursorPosition`, `SetConsoleTextAttribute`, `PlaySound`) and redirects `std::cout` into a character grid
+- `web/index.html` draws that grid on a `<canvas>`, handles keyboard, swipe and on-screen buttons, and plays the sounds
+- **GitHub Actions** rebuilds and deploys the web version to GitHub Pages on every push
+
 ## 📁 Project structure
 
 ```
@@ -48,12 +61,20 @@ Guide Pac-Man (`C`) through the maze, collect every coin (`.`) and avoid the gho
 ├── Entities.cpp              # Hero and Enemy rendering
 ├── music.cpp                 # Background music thread
 ├── layout.h                  # Level layout
-└── *.wav                     # Music and sound effects
+├── *.wav                     # Music and sound effects
+├── web/                      # Browser version
+│   ├── console_shim.h/.cpp   # WinAPI console emulation for WebAssembly
+│   ├── main_web.cpp          # Browser entry point (replaces main.cpp)
+│   ├── index.html            # Canvas renderer, controls, sound
+│   └── build.sh              # Build script
+└── .github/workflows/        # Auto-deploy to GitHub Pages
 ```
 
 ## 🚀 How to run
 
-> Windows only (uses WinAPI and `conio.h`)
+**In the browser:** just open [alexdrts.github.io/PacMan-CPP](https://alexdrts.github.io/PacMan-CPP/).
+
+**On Windows** (console version):
 
 1. Clone the repository
 2. Open `project_02.10.2025.sln` in **Visual Studio**
