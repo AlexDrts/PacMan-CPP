@@ -67,4 +67,3 @@ Keep the `.wav` files next to the executable so the sounds play.
 
 Made by [Alex](https://github.com/AlexDrts) 🌸
 
-</div>![Uploading photo_2026-10-24_23-13-29.jpg…]()
