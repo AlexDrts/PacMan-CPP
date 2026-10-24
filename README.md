@@ -14,7 +14,7 @@
 
 </div>
 
-<img width="100%" alt="photo_2026-10-24_23-13-29" src="https://github.com/user-attachments/assets/f07fddab-ecff-4bcf-bfa6-4c66f10d28ea" />
+<img width="100%" alt="photo_2026-10-25_00-28-21" src="https://github.com/user-attachments/assets/b093e4b2-f375-4f22-a777-eb69dd4f260e" />
 
 ## 🎮 Gameplay
 
